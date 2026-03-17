@@ -45,6 +45,7 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
     @IBOutlet private var recordButton: RecordButton!
     @IBOutlet private var timeLabel: UILabel!
     @IBOutlet weak var fpsButton: UIButton!
+    private var folderNameField: UITextField!
     var dismissFunction: Optional<() -> Void> = Optional.none
     
     func setDismissFunction(_ fn: Optional<() -> Void>) {
@@ -73,6 +74,27 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
         fpsButton.layer.cornerRadius = 12.0
         
         imuOperationQueue.qualityOfService = .userInitiated
+
+        // フォルダ名テキストフィールド
+        let tf = UITextField()
+        tf.placeholder = "フォルダ名"
+        tf.borderStyle = .roundedRect
+        tf.returnKeyType = .done
+        tf.addTarget(self, action: #selector(dismissFolderNameKeyboard), for: .editingDidEndOnExit)
+        tf.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(tf)
+        self.folderNameField = tf
+        NSLayoutConstraint.activate([
+            tf.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            tf.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            tf.bottomAnchor.constraint(equalTo: recordButton.topAnchor, constant: -12),
+            tf.heightAnchor.constraint(equalToConstant: 44)
+        ])
+
+        // プレビューを90度左回転
+        let rotation = CGAffineTransform(rotationAngle: -.pi / 2)
+        depthView.transform = rotation
+        rgbView.transform = rotation
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -164,7 +186,7 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
             self.updateTime()
         }
         startRawIMU()
-        datasetEncoder = DatasetEncoder(arConfiguration: arConfiguration!, fpsDivider: FpsDividers[chosenFpsSetting])
+        datasetEncoder = DatasetEncoder(arConfiguration: arConfiguration!, fpsDivider: FpsDividers[chosenFpsSetting], folderName: folderNameField.text)
         startRawIMU()
     }
 
@@ -196,14 +218,15 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
 
     private func saveRecording(_ started: Date, _ encoder: DatasetEncoder) {
         let sessionCount = countSessions()
-        
+
         let duration = Date().timeIntervalSince(started)
         let entity = NSEntityDescription.entity(forEntityName: "Recording", in: self.dataContext)!
         let recording: Recording = Recording(entity: entity, insertInto: self.dataContext)
         recording.setValue(datasetEncoder!.id, forKey: "id")
         recording.setValue(duration, forKey: "duration")
         recording.setValue(started, forKey: "createdAt")
-        recording.setValue("Recording \(sessionCount)", forKey: "name")
+        let customName = folderNameField.text?.trimmingCharacters(in: .whitespaces) ?? ""
+        recording.setValue(customName.isEmpty ? "Recording \(sessionCount)" : customName, forKey: "name")
         recording.setValue(datasetEncoder!.rgbFilePath.relativeString, forKey: "rgbFilePath")
         recording.setValue(datasetEncoder!.depthFilePath.relativeString, forKey: "depthFilePath")
         do {
@@ -232,6 +255,10 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
         self.timeLabel.text = String(format: "%02d:%02d:%02d", hours, minutes, roundSeconds)
     }
 
+    @objc private func dismissFolderNameKeyboard() {
+        folderNameField.resignFirstResponder()
+    }
+
     @objc func viewTapped() {
         switch renderer!.renderMode {
             case .depth:
@@ -252,7 +279,7 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
     }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        self.renderer!.render(frame: frame)
+        self.renderer!.render(frame: frame, viewportSize: depthView.bounds.size)
         if startedRecording != nil {
             if let encoder = datasetEncoder {
                 encoder.add(frame: frame)

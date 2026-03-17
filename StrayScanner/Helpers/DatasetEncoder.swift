@@ -41,14 +41,14 @@ class DatasetEncoder {
     private var latestGyroscopeData: (timestamp: Double, data: simd_double3)?
 
 
-    init(arConfiguration: ARWorldTrackingConfiguration, fpsDivider: Int = 1) {
+    init(arConfiguration: ARWorldTrackingConfiguration, fpsDivider: Int = 1, folderName: String? = nil) {
         self.frameInterval = fpsDivider
         self.queue = DispatchQueue(label: "encoderQueue")
         
         let width = arConfiguration.videoFormat.imageResolution.width
         let height = arConfiguration.videoFormat.imageResolution.height
         var theId: UUID = UUID()
-        datasetDirectory = DatasetEncoder.createDirectory(id: &theId)
+        datasetDirectory = DatasetEncoder.createDirectory(id: &theId, folderName: folderName)
         self.id = theId
         self.rgbFilePath = datasetDirectory.appendingPathComponent("rgb.mp4")
         self.rgbEncoder = VideoEncoder(file: self.rgbFilePath, width: width, height: height)
@@ -168,8 +168,11 @@ class DatasetEncoder {
         }
     }
 
-    static private func createDirectory(id: inout UUID) -> URL {
-        let directoryId = hashUUID(id: id)
+    static private func createDirectory(id: inout UUID, folderName: String? = nil) -> URL {
+        let directoryId = folderName.flatMap {
+            let s = $0.trimmingCharacters(in: .whitespaces)
+            return s.isEmpty ? nil : s
+        } ?? hashUUID(id: id)
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         var directory = URL(fileURLWithPath: directoryId, relativeTo: url)
         if FileManager.default.fileExists(atPath: directory.absoluteString) {

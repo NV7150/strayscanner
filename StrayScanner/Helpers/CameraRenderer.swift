@@ -35,7 +35,7 @@ class CameraRenderer {
     private var depthTexture: MTLTexture!
     private lazy var textureCache: CVMetalTextureCache = makeTextureCache()
     
-    public var renderMode: RenderMode = RenderMode.depth 
+    public var renderMode: RenderMode = RenderMode.depth
 
     init(rgbLayer: CAMetalLayer, depthLayer: CAMetalLayer) {
         self.rgbLayer = rgbLayer
@@ -43,7 +43,10 @@ class CameraRenderer {
         initMetal()
     }
 
-    func render(frame: ARFrame) {
+    func render(frame: ARFrame, viewportSize: CGSize) {
+        if viewportSize != .zero {
+            updateVertexCoordinates(for: frame, viewportSize: viewportSize)
+        }
         switch (renderMode) {
             case .depth:
                 updateDepthTexture(frame: frame)
@@ -52,6 +55,31 @@ class CameraRenderer {
                 updateRGBTexture(frame: frame)
                 renderRGB()
         }
+    }
+
+    private func updateVertexCoordinates(for frame: ARFrame, viewportSize: CGSize) {
+        let displayTransform = frame.displayTransform(for: .portrait, viewportSize: viewportSize)
+        let inv = displayTransform.inverted()
+
+        // Clip-space positions for the 4 vertices (triangleStrip order)
+        // and their corresponding display [0,1] coordinates (y=0 top, y=1 bottom)
+        let clipAndDisplay: [(clipX: Float, clipY: Float, dispX: CGFloat, dispY: CGFloat)] = [
+            (-1.0, -1.0, 0.0, 1.0),  // bottom-left
+            ( 1.0, -1.0, 1.0, 1.0),  // bottom-right
+            (-1.0,  1.0, 0.0, 0.0),  // top-left
+            ( 1.0,  1.0, 1.0, 0.0),  // top-right
+        ]
+
+        var newData = [Float]()
+        for v in clipAndDisplay {
+            let displayPt = CGPoint(x: v.dispX, y: v.dispY)
+            let cameraUV = displayPt.applying(inv)
+            newData.append(v.clipX)
+            newData.append(v.clipY)
+            newData.append(Float(cameraUV.x))
+            newData.append(Float(cameraUV.y))
+        }
+        memcpy(vertexBuffer.contents(), newData, newData.count * MemoryLayout<Float>.size)
     }
 
     private func renderRGB() {
