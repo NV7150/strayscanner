@@ -45,7 +45,11 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
     @IBOutlet private var recordButton: RecordButton!
     @IBOutlet private var timeLabel: UILabel!
     @IBOutlet weak var fpsButton: UIButton!
+    @IBOutlet weak var recordButtonHeightConstraint: NSLayoutConstraint!
+    @IBOutlet weak var recordButtonWidthConstraint: NSLayoutConstraint!
+    @IBOutlet weak var timeLabelWidthConstraint: NSLayoutConstraint!
     private var folderNameField: UITextField!
+    private var folderNameFieldHeightConstraint: NSLayoutConstraint?
     var dismissFunction: Optional<() -> Void> = Optional.none
     
     func setDismissFunction(_ fn: Optional<() -> Void>) {
@@ -71,7 +75,6 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
             self.toggleRecording(recording)
         }
         fpsButton.layer.masksToBounds = true
-        fpsButton.layer.cornerRadius = 12.0
         
         imuOperationQueue.qualityOfService = .userInitiated
 
@@ -88,13 +91,66 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
             tf.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             tf.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
             tf.bottomAnchor.constraint(equalTo: recordButton.topAnchor, constant: -12),
-            tf.heightAnchor.constraint(equalToConstant: 44)
         ])
+        let heightC = tf.heightAnchor.constraint(equalToConstant: 44)
+        self.folderNameFieldHeightConstraint = heightC
+        heightC.isActive = true
 
-        // プレビューを90度左回転
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        let safeFrame = view.safeAreaLayoutGuide.layoutFrame
+        guard safeFrame.width > 0 else { return }
+
+        // カメラアスペクト比: 1440/1920 = 3/4（ポートレートbounds）
+        // -90°回転後: visual_width = boundsH, visual_height = boundsW
+        // セーフエリアにfitさせる（letterbox）
+        let aspectW = CGFloat(1440.0 / 1920.0)
+        let boundsH: CGFloat
+        let boundsW: CGFloat
+
+        if aspectW * safeFrame.width <= safeFrame.height {
+            // 幅いっぱい（ポートレートiPad等）
+            boundsH = safeFrame.width
+            boundsW = safeFrame.width * aspectW
+        } else {
+            // 高さいっぱい（ランドスケープiPad等）
+            boundsW = safeFrame.height
+            boundsH = safeFrame.height / aspectW
+        }
+
+        // 回転後の上端をセーフエリア上端に揃える
+        // visual_top = center_y - boundsW/2 = safeFrame.minY
+        // → center_y = safeFrame.minY + boundsW/2
+        let center = CGPoint(x: safeFrame.midX, y: safeFrame.minY + boundsW / 2)
         let rotation = CGAffineTransform(rotationAngle: -.pi / 2)
+
+        depthView.bounds = CGRect(x: 0, y: 0, width: boundsW, height: boundsH)
+        depthView.center = center
         depthView.transform = rotation
-        rgbView.transform = rotation
+
+        rgbView.bounds = depthView.bounds
+        rgbView.center = depthView.center
+        rgbView.transform = depthView.transform
+
+        // UIスケール（短辺基準、上限2倍）
+        let shortSide = min(safeFrame.width, safeFrame.height)
+        let scale = min(shortSide / 390.0, 2.0)
+
+        let btnSize = (90.0 * scale).rounded()
+        recordButtonHeightConstraint.constant = btnSize
+        recordButtonWidthConstraint.constant  = btnSize
+
+        timeLabelWidthConstraint.constant = (200.0 * scale).rounded()
+
+        timeLabel.font = UIFont(name: "CourierNewPSMT", size: (24.0 * scale).rounded())
+        fpsButton.titleLabel?.font = UIFont(name: "CourierNewPSMT", size: (19.0 * scale).rounded())
+        fpsButton.layer.cornerRadius = (12.0 * scale).rounded()
+
+        folderNameFieldHeightConstraint?.constant = (44.0 * scale).rounded()
+        folderNameField?.font = UIFont.systemFont(ofSize: (17.0 * scale).rounded())
     }
 
     override func viewDidDisappear(_ animated: Bool) {

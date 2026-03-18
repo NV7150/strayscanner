@@ -14,8 +14,11 @@
                 <outlet property="depthView" destination="hCd-f8-w77" id="DPh-hN-bvs"/>
                 <outlet property="fpsButton" destination="Fgc-yD-8VQ" id="Fat-e7-tV3"/>
                 <outlet property="recordButton" destination="Iec-uU-r0Y" id="AS7-DH-SKh"/>
+                <outlet property="recordButtonHeightConstraint" destination="MxO-He-EDM" id="Hd2-vA-kPm"/>
+                <outlet property="recordButtonWidthConstraint" destination="ocE-Ha-4ce" id="Jx9-aB-qWn"/>
                 <outlet property="rgbView" destination="qwG-2k-qYO" id="hBM-7j-ffe"/>
                 <outlet property="timeLabel" destination="CWu-F8-lfZ" id="mat-Xv-0eG"/>
+                <outlet property="timeLabelWidthConstraint" destination="KhQ-eW-fvg" id="Lk4-cD-rTs"/>
                 <outlet property="view" destination="iN0-l3-epB" id="NOF-IO-uOa"/>
             </connections>
         </placeholder>
