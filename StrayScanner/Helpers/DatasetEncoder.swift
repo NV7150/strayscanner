@@ -25,7 +25,7 @@ class DatasetEncoder {
     private let imuEncoder: IMUEncoder
     private var lastFrame: ARFrame?
     private var dispatchGroup = DispatchGroup()
-    private var currentFrame: Int = -1
+    private var currentFrame: Int = 0
     private var savedFrames: Int = 0
     private let frameInterval: Int // Only save every frameInterval-th frame.
     public let id: UUID

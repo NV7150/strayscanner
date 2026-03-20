@@ -75,10 +75,12 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
             self.toggleRecording(recording)
         }
         fpsButton.layer.masksToBounds = true
-        
+        recordButtonHeightConstraint.constant = 48
+        recordButtonWidthConstraint.constant  = 48
+
         imuOperationQueue.qualityOfService = .userInitiated
 
-        // フォルダ名テキストフィールド
+        // フォルダ名テキストフィールド（fpsButton直下に配置）
         let tf = UITextField()
         tf.placeholder = "フォルダ名"
         tf.borderStyle = .roundedRect
@@ -90,9 +92,9 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
         NSLayoutConstraint.activate([
             tf.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             tf.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-            tf.bottomAnchor.constraint(equalTo: recordButton.topAnchor, constant: -12),
+            tf.bottomAnchor.constraint(equalTo: recordButton.topAnchor, constant: -20),
         ])
-        let heightC = tf.heightAnchor.constraint(equalToConstant: 44)
+        let heightC = tf.heightAnchor.constraint(equalToConstant: 32)
         self.folderNameFieldHeightConstraint = heightC
         heightC.isActive = true
 
@@ -104,27 +106,29 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
         let safeFrame = view.safeAreaLayoutGuide.layoutFrame
         guard safeFrame.width > 0 else { return }
 
+        // カメラが使える領域: safeAreaトップ〜fpsButton上端の5pt手前
+        let cameraAreaBottom = fpsButton.frame.minY - 5
+        let cameraAreaHeight = max(cameraAreaBottom - safeFrame.minY, 1)
+        let cameraAreaWidth = safeFrame.width
+
         // カメラアスペクト比: 1440/1920 = 3/4（ポートレートbounds）
         // -90°回転後: visual_width = boundsH, visual_height = boundsW
-        // セーフエリアにfitさせる（letterbox）
-        let aspectW = CGFloat(1440.0 / 1920.0)
+        // コントロール領域に重ならないようアスペクトfit
         let boundsH: CGFloat
         let boundsW: CGFloat
 
-        if aspectW * safeFrame.width <= safeFrame.height {
-            // 幅いっぱい（ポートレートiPad等）
-            boundsH = safeFrame.width
-            boundsW = safeFrame.width * aspectW
+        if cameraAreaWidth * 3 <= cameraAreaHeight * 4 {
+            // 縦長エリア: 幅基準
+            boundsH = cameraAreaWidth
+            boundsW = cameraAreaWidth * 3.0 / 4.0
         } else {
-            // 高さいっぱい（ランドスケープiPad等）
-            boundsW = safeFrame.height
-            boundsH = safeFrame.height / aspectW
+            // 横長エリア: 高さ基準
+            boundsW = cameraAreaHeight
+            boundsH = cameraAreaHeight * 4.0 / 3.0
         }
 
-        // 回転後の上端をセーフエリア上端に揃える
-        // visual_top = center_y - boundsW/2 = safeFrame.minY
-        // → center_y = safeFrame.minY + boundsW/2
-        let center = CGPoint(x: safeFrame.midX, y: safeFrame.minY + boundsW / 2)
+        // 視覚上端をカメラエリア上端に揃える
+        let center = CGPoint(x: safeFrame.midX, y: safeFrame.minY + boundsW / 2.0)
         let rotation = CGAffineTransform(rotationAngle: -.pi / 2)
 
         depthView.bounds = CGRect(x: 0, y: 0, width: boundsW, height: boundsH)
@@ -241,7 +245,6 @@ class RecordSessionViewController : UIViewController, ARSessionDelegate {
         updateLabelTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             self.updateTime()
         }
-        startRawIMU()
         datasetEncoder = DatasetEncoder(arConfiguration: arConfiguration!, fpsDivider: FpsDividers[chosenFpsSetting], folderName: folderNameField.text)
         startRawIMU()
     }

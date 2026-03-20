@@ -20,15 +20,19 @@ class RecordButton : UIView {
     override public init(frame: CGRect) {
         super.init(frame: frame)
         self.backgroundColor = UIColor.clear
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(buttonPressed)))
     }
 
     override func layoutSubviews() {
-        setup()
+        layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        drawInner()
+        drawEdge()
     }
 
     required public init?(coder aCoder: NSCoder) {
         super.init(coder: aCoder)
         self.backgroundColor = UIColor.clear
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(buttonPressed)))
     }
 
     func setCallback(callback: @escaping (Bool) -> Void) {
@@ -39,12 +43,6 @@ class RecordButton : UIView {
         self.animateButton()
         self.recording = !self.recording
         self.callback?(self.recording)
-    }
-
-    private func setup() {
-        drawInner()
-        drawEdge()
-        self.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(buttonPressed)))
     }
 
     private func drawEdge() {

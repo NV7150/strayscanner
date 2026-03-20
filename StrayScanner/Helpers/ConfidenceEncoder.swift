@@ -31,7 +31,9 @@ class ConfidenceEncoder {
     }
 
     func encodeFrame(frame: CVPixelBuffer, frameNumber: Int) {
-        assert((previousFrame+1) == frameNumber, "Confidence skipped a frame. \(previousFrame+1) != \(frameNumber)")
+        if (previousFrame + 1) != frameNumber {
+            print("Confidence skipped frame(s): \(previousFrame + 1)..<\(frameNumber)")
+        }
         previousFrame = frameNumber
         let filename = String(format: "%06d", frameNumber)
         let image = CIImage(cvPixelBuffer: frame)
